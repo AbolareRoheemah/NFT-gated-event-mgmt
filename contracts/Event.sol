@@ -38,6 +38,7 @@ contract Event {
         require(msg.sender == owner, "not authorized");
         require(_nftAddress != address(0), "invalid nft address");
         require(_startAt >= block.timestamp, "invalid start time");
+        require(_endAt > block.timestamp + 1 days, "invalid end time");
 
         uint newCount = eventCount + 1;
         EventStruct storage newEvent = events[newCount];
@@ -58,10 +59,10 @@ contract Event {
         require(msg.sender != address(0), "invalid caller");
         require(_applicant != address(0), "invalid applicant address");
         EventStruct storage newEvent = events[_eventId];
-        require(IERC721(newEvent.eventNFT).balanceOf(_applicant) > 0, "required NFT not found");
+        IERC721 nft = IERC721(newEvent.eventNFT);
+        require(nft.balanceOf(_applicant) > 0, "required NFT not found");
         require(newEvent.eventId != 0, "invalid event id");
         require(newEvent.endAt > block.timestamp, "event has ended");
-        require(newEvent.startAt <= block.timestamp, "event hasnt started");
         require(!hasRegistered[_applicant][newEvent.eventId], "attendee already registered");
         
         newEvent.registeredAttendees.push(_applicant);
