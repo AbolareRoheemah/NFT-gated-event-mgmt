@@ -27,6 +27,8 @@ contract Event {
 
     EventStruct[] allEvents;
     mapping (uint => EventStruct) events;
+    // if an address has registered for an event
+    mapping (address => mapping(uint => bool)) hasRegistered;
 
     event EventCreated(string name, uint startAt, uint endAt);
     event ApplicantRegistered(uint indexed eventId, address indexed applicant);
@@ -56,13 +58,15 @@ contract Event {
         require(msg.sender != address(0), "invalid caller");
         require(_applicant != address(0), "invalid applicant address");
         EventStruct storage newEvent = events[_eventId];
+        require(IERC721(newEvent.eventNFT).balanceOf(_applicant) > 0, "required NFT not found");
         require(newEvent.eventId != 0, "invalid event id");
         require(newEvent.endAt > block.timestamp, "event has ended");
         require(newEvent.startAt <= block.timestamp, "event hasnt started");
-        require(IERC721(newEvent.eventNFT).balanceOf(_applicant) > 0, "required NFT not found");
+        require(!hasRegistered[_applicant][newEvent.eventId], "attendee already registered");
         
         newEvent.registeredAttendees.push(_applicant);
         newEvent.noOfRegisteredAttendees++;
+        hasRegistered[_applicant][newEvent.eventId] = true;
 
         emit ApplicantRegistered(_eventId, _applicant);
     }
@@ -72,5 +76,29 @@ contract Event {
         IERC721 nft = IERC721(_nftAddress);
         require(nft.ownerOf(_tokenId) == address(this), "Contract doesn't own the NFT");
         nft.safeTransferFrom(address(this), _to, _tokenId);
+    }
+
+    function getEvent(uint _eventId) external view returns (EventStruct memory) {
+        EventStruct memory targetEvent = events[_eventId];
+        require(targetEvent.eventId != 0, "invalid event id");
+        return targetEvent;
+    }
+
+    function getAllEvents() external view returns (EventStruct[] memory) {
+        require(msg.sender != address(0), "invalid caller");
+        return allEvents;
+    }
+
+    function getEventAttendees(uint _eventId) internal view returns (address[] memory) {
+        EventStruct memory targetEvent = events[_eventId];
+        require(targetEvent.eventId != 0, "invalid event id");
+        require(msg.sender == owner, "unathorized");
+        return targetEvent.registeredAttendees;
+    }
+
+    function getAttendeeStatus(uint _eventId, address _attendee) external view returns (bool) {
+        EventStruct memory targetEvent = events[_eventId];
+        require(targetEvent.eventId != 0, "invalid event id");
+        return hasRegistered[_attendee][_eventId];
     }
 } // 0x207De8361C16b18CA60b41F7D68A45B99E11d7A2
